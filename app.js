@@ -23,6 +23,7 @@ for(var i = 0; i <= 1000; i++) {
 mongo = exec('node connect-mongo.js');
 mongodb = exec('node connect-mongodb.js');
 redis = exec('node connect-redis.js');
+memorystore = exec('node memorystore.js');
 
 async.waterfall([
 	function (nextStore) {
@@ -68,7 +69,7 @@ async.waterfall([
 				var r = request.defaults({jar: jar[n]});
 				r('http://localhost:8803/login', function () {
 					r('http://localhost:8803/', function (err, response, body) {
-						next(null)
+						next(null);
 					});
 				});
 			}, function () {
@@ -78,11 +79,29 @@ async.waterfall([
 			print('Connect-redis', d);
 			nextStore(null);
 		});
+	},
+	function (nextStore) {
+		var d = new Date();
+		async.times(REQUEST_CONCURRENCY, function (nc, nextConcurrency) {
+			async.timesSeries(REQUEST_TIME / REQUEST_CONCURRENCY, function (n, next) {
+				var r = request.defaults({jar: jar[n]});
+				r('http://localhost:8804/login', function () {
+					r('http://localhost:8804/', function (err, response, body) {
+						next(null);
+					});
+				});
+			}, function () {
+				nextConcurrency(null);
+			});
+		}, function () {
+			print('MemoryStore', d);
+			nextStore(null);
+		});
 	}
 ], function () {
 	mongo.kill();
 	mongodb.kill();
 	redis.kill();
+	memorystore.kill();
 	process.exit(1);
-})
-
+});
