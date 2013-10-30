@@ -1,22 +1,25 @@
-/*
-
-*/
-
 var request = require('request'),
+program = require('commander'),
 async = require('async'),
 exec = require('child_process').exec;
 
-var REQUEST_TIME = 1000,
-REQUEST_CONCURRENCY = 5;
+require('http').globalAgent.maxSockets = 4086;
 
 var jar = [], mongo, mongodb, redis;
 
 function print(type, d) {
 	var elaspe = (new Date()- d) / 1000;
-	console.log('[ ' + type + ' ] ' + Math.round(REQUEST_TIME / elaspe) + ' req/s');
+	console.log('[' + type + ']\t' + Math.round(REQUEST_TIME / elaspe) + ' req/s');
 }
 
-for(var i = 0; i <= 1000; i++) {
+program.version('0.0.1').option('-n [number]', 'Number of requests to perform').option('-c [NUMBER]', 'Number of multiple requests to make at a time').parse(process.argv);
+
+var REQUEST_TIME = program.N || 1000,
+REQUEST_CONCURRENCY = program.C || 5;
+
+console.log('* Run %d requests / %d at a time', REQUEST_TIME, REQUEST_CONCURRENCY);
+
+for(var i = 0; i <= REQUEST_TIME; i++) {
 	jar.push(request.jar());
 }
 
@@ -24,6 +27,7 @@ mongo = exec('node connect-mongo.js');
 mongodb = exec('node connect-mongodb.js');
 redis = exec('node connect-redis.js');
 memorystore = exec('node memorystore.js');
+console.log('* Servers started, begin benchmark');
 
 async.waterfall([
 	function (nextStore) {
@@ -40,7 +44,7 @@ async.waterfall([
 				nextConcurrency(null);
 			});
 		}, function () {
-			print('Connect-mongo', d);
+			print('  Connect-mongo  ', d);
 			nextStore(null);
 		});
 	},
@@ -58,7 +62,7 @@ async.waterfall([
 				nextConcurrency(null);
 			});
 		}, function () {
-			print('Connect-mongodb', d);
+			print(' Connect-mongodb ', d);
 			nextStore(null);
 		});
 	},
@@ -76,7 +80,7 @@ async.waterfall([
 				nextConcurrency(null);
 			});
 		}, function () {
-			print('Connect-redis', d);
+			print('  Connect-redis  ', d);
 			nextStore(null);
 		});
 	},
@@ -94,7 +98,7 @@ async.waterfall([
 				nextConcurrency(null);
 			});
 		}, function () {
-			print('MemoryStore', d);
+			print('   MemoryStore   ', d);
 			nextStore(null);
 		});
 	}
